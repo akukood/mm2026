@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>MM 2026 — Bets</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #18181c;
+    --surface2: #222228;
+    --border: #2e2e38;
+    --text: #f0f0f4;
+    --muted: #7a7a8c;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --accent: #6366f1;
+    --accent-dim: rgba(99,102,241,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 16px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .logo {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .logo span { color: var(--accent); }
+
+  /* PERSON SELECTOR */
+  .person-select-wrap {
+    position: relative;
+  }
+  .person-btn {
+    background: var(--accent-dim);
+    border: 1px solid var(--accent);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .person-btn svg { opacity: 0.7; }
+
+  /* Person picker modal */
+  .person-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 300;
+    align-items: flex-end;
+  }
+  .person-overlay.open { display: flex; }
+  .person-sheet {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    width: 100%;
+    max-height: 70vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .person-sheet-handle {
+    width: 36px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 10px auto 0;
+    flex-shrink: 0;
+  }
+  .person-sheet-title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 10px 16px 8px;
+    flex-shrink: 0;
+  }
+  .person-sheet-list {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 24px;
+  }
+  .person-option {
+    padding: 13px 16px;
+    font-size: 15px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .person-option:last-child { border-bottom: none; }
+  .person-option:active { background: var(--surface2); }
+  .person-option.active { color: var(--accent); font-weight: 600; }
+
+  /* PLAYER STATS */
+  .player-stats {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .player-name {
+    font-size: 14px;
+    font-weight: 700;
+    flex: 1;
+  }
+  .stat-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-chip strong {
+    color: var(--text);
+    font-size: 14px;
+  }
+
+  /* DATE NAV */
+  .date-nav {
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+  }
+  .date-arrow {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--muted);
+    flex-shrink: 0;
+    transition: color 0.1s;
+    user-select: none;
+    font-size: 18px;
+    border: none;
+    background: none;
+  }
+  .date-arrow:hover { color: var(--text); }
+  .date-label {
+    flex: 1;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .date-label .today-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin-left: 5px;
+    vertical-align: middle;
+    margin-bottom: 2px;
+  }
+
+  /* MAIN CONTENT */
+  .main { padding: 12px 16px 0; }
+
+  /* SCOREBOARD */
+  .section-toggle {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    transition: background 0.1s;
+  }
+  .section-toggle:hover { background: var(--surface2); }
+  .section-toggle .chevron {
+    transition: transform 0.2s;
+    color: var(--muted);
+  }
+  .section-toggle.open .chevron { transform: rotate(180deg); }
+
+  .scoreboard {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .scoreboard.open { display: block; }
+
+  .sb-row {
+    display: flex;
+    align-items: center;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    gap: 8px;
+  }
+  .sb-row:last-child { border-bottom: none; }
+  .sb-row.me { background: var(--accent-dim); }
+  .sb-rank {
+    width: 26px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .sb-rank.gold { color: #f59e0b; }
+  .sb-rank.silver-r { color: #94a3b8; }
+  .sb-rank.bronze { color: #b45309; }
+  .sb-name { flex: 1; font-weight: 600; }
+  .sb-pts {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--accent);
+  }
+  .sb-gap { font-size: 11px; color: var(--muted); }
+
+  /* GAMES SECTION */
+  .day-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .no-games {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  /* GAME CARD */
+  .game-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .game-top {
+    padding: 12px 14px 10px;
+  }
+  .game-num {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .game-teams {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .team-name { flex: 1; }
+  .team-name.right { text-align: right; }
+  .score-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 18px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.05em;
+    min-width: 64px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .score-box.has-score { color: var(--text); }
+  .score-box.no-score { color: var(--muted); font-size: 14px; }
+
+  /* PREDICTION ROW */
+  .prediction-row {
+    border-top: 1px solid var(--border);
+    padding: 9px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .pred-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    flex-shrink: 0;
+  }
+  .pred-score {
+    font-weight: 700;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .pred-score.no-pred { color: var(--muted); font-weight: 400; }
+  .pts-badge {
+    margin-left: auto;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 13px;
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .pts-0 { background: rgba(239,68,68,0.2); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .pts-3 { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .pts-5 { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+
+  /* KNOCKOUT EXTRAS */
+  .loppu-tag {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 5px;
+    font-weight: 500;
+  }
+  .loppu-pending { font-style: italic; }
+
+  /* BONUS PANEL */
+  .bonus-category {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px;
+  }
+  .bonus-category:last-child { border-bottom: none; }
+  .bonus-cat-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  .bonus-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bonus-row:last-child { border-bottom: none; }
+  .bonus-row.me { color: var(--text); font-weight: 600; }
+  .bonus-name { width: 80px; flex-shrink: 0; color: var(--muted); }
+  .bonus-row.me .bonus-name { color: var(--text); }
+  .bonus-pred { flex: 1; font-weight: 500; }
+
+  /* GAME COLLAPSE */
+  .game-num-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .game-chevron {
+    color: var(--muted);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .game-card.expanded .game-chevron { transform: rotate(180deg); }
+
+  .others-panel {
+    display: none;
+    border-top: 1px solid var(--border);
+  }
+  .game-card.expanded .others-panel { display: block; }
+  .others-inner {
+    padding: 8px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .other-pred {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .other-name {
+    flex: 1;
+    color: var(--muted);
+  }
+  .other-score {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .other-score.no-pred { color: var(--muted); font-weight: 400; }
+
+  /* LOADING & ERROR */
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-box {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 16px;
+    font-size: 13px;
+    color: var(--red);
+    line-height: 1.5;
+  }
+  .error-box strong { display: block; margin-bottom: 4px; }
+
+  .refresh-btn {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 12px 16px 0;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+  }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* DROPBOX URL INPUT */
+  .url-setup {
+    margin: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .url-setup p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  .url-setup input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+    margin-bottom: 10px;
+    outline: none;
+  }
+  .url-setup input:focus { border-color: var(--accent); }
+  .url-setup button {
+    width: 100%;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 10px;
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .setup-hint {
+    font-size: 12px;
+    color: var(--muted);
+    margin: 8px 16px;
+    line-height: 1.5;
+  }
+  .setup-hint code {
+    background: var(--surface2);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 11px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="logo">MM 2026 <span>Bets</span></div>
+    <div class="person-select-wrap">
+      <button class="person-btn" onclick="togglePersonDropdown()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <span id="personBtnLabel">Select person</span>
+        <svg class="chevron-small" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="playerStatsWrap" style="display:none; margin-bottom:10px;">
+    <div class="player-stats">
+      <div class="player-name" id="statsName">—</div>
+      <div class="stat-chip">Pts <strong id="statsPts">—</strong></div>
+      <div class="stat-chip">Rank <strong id="statsRank">—</strong></div>
+    </div>
+  </div>
+
+  <div class="date-nav">
+    <button class="date-arrow" onclick="changeDate(-1)">‹</button>
+    <div class="date-label" id="dateLabel" onclick="goToToday()">—</div>
+    <button class="date-arrow" onclick="changeDate(1)">›</button>
+  </div>
+</div>
+
+<div class="person-overlay" id="personOverlay" onclick="closePersonSheet(event)">
+  <div class="person-sheet">
+    <div class="person-sheet-handle"></div>
+    <div class="person-sheet-title">Select person</div>
+    <div class="person-sheet-list" id="personDropdown"></div>
+  </div>
+</div>
+
+<div class="main">
+  <div id="content">
+    <div class="loading"><div class="spinner"></div><span>Loading data…</span></div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+let allGames = [];
+let allBonus = [];
+let allPlayers = [];
+let currentDate = todayStr();
+let selectedPerson = localStorage.getItem('wc_person') || null;
+let dropboxUrl = 'https://www.dropbox.com/scl/fi/ypbfh8hmpp1jzbqufsuwq/Jalka-MM-2026.xlsx?rlkey=d4yturn12h9kuwkqu2rbnbblz&st=l549u2vi&dl=0';
+let scoreboard = [];
+
+function todayStr() {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+
+// ── DATE UTILS ─────────────────────────────────────────────────────────────
+function formatDateLabel(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const label = `${days[date.getDay()]}, ${d}. ${months[m - 1]}`;
+  const isToday = str === todayStr();
+  return label + (isToday ? ' <span class="today-dot"></span>' : '');
+}
+
+function changeDate(delta) {
+  const [y, m, d] = currentDate.split('-').map(Number);
+  const date = new Date(Date.UTC(y, m - 1, d + delta));
+  currentDate = date.toISOString().slice(0, 10);
+  renderDay();
+}
+
+function goToToday() {
+  currentDate = todayStr();
+  renderDay();
+}
+
+// ── PERSON DROPDOWN ────────────────────────────────────────────────────────
+function togglePersonDropdown() {
+  document.getElementById('personOverlay').classList.toggle('open');
+}
+
+function closePersonSheet(e) {
+  // Close if tapping the dark overlay (not the sheet itself)
+  if (e.target === document.getElementById('personOverlay')) {
+    document.getElementById('personOverlay').classList.remove('open');
+  }
+}
+
+function buildPersonDropdown() {
+  const dd = document.getElementById('personDropdown');
+  dd.innerHTML = allPlayers.map(p =>
+    `<div class="person-option${selectedPerson === p.name ? ' active' : ''}" onclick="selectPerson('${p.name}')">${p.name}</div>`
+  ).join('');
+}
+
+function selectPerson(name) {
+  selectedPerson = name;
+  localStorage.setItem('wc_person', name);
+  document.getElementById('personOverlay').classList.remove('open');
+  document.getElementById('personBtnLabel').textContent = name;
+  updatePlayerStats();
+  renderDay();
+}
+
+function updatePlayerStats() {
+  const wrap = document.getElementById('playerStatsWrap');
+  if (!selectedPerson) { wrap.style.display = 'none'; return; }
+  const p = allPlayers.find(x => x.name === selectedPerson);
+  if (!p) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  document.getElementById('statsName').textContent = selectedPerson;
+  document.getElementById('statsPts').textContent = p.total + ' pts';
+  // Rank: parse Estonian rank string to English
+  const rank = p.rank.replace(/\. Koht/g, '').replace(' - ', '–') + (p.rank.includes('Koht') ? ' place' : '');
+  document.getElementById('statsRank').textContent = rank;
+}
+
+// ── DATA PARSING ───────────────────────────────────────────────────────────
+function parseWorkbook(wb) {
+  const ws = wb.Sheets['MM 2026'];
+  if (!ws) throw new Error('Sheet "MM 2026" not found');
+  const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+  // ── PLAYERS (row 0) ────────────────────────────────────────────────────
+  const players = [];
+  for (let col = 11; col < 91; col += 4) {
+    const name = raw[0]?.[col];
+    if (!name || typeof name !== 'string') continue;
+    const gap = raw[3]?.[col];
+    const rank = raw[2]?.[col];
+    players.push({ name: name.trim(), gap: gap != null ? Number(gap) : null, rank: rank ? String(rank) : '', col, total: 0 });
+  }
+
+  // ── HELPER: parse serial date ──────────────────────────────────────────
+  function serialToDate(v) {
+    if (v == null) return null;
+    if (typeof v === 'number') {
+      const d = XLSX.SSF.parse_date_code(v);
+      return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+    }
+    return String(v).slice(0, 10);
+  }
+
+  function parseNum(v) {
+    if (v == null || v === ':' || v === '') return null;
+    const n = Number(v);
+    return isNaN(n) ? null : Math.round(n);
+  }
+
+  // ── GROUP STAGE GAMES (rows 5–88, games 1–72) ─────────────────────────
+  // Cols: 0=num,1=date,2=team1,4=team2, 5=final1,7=final2
+  // Players: col+0=score1, col+2=score2, col+3=pts
+  const games = [];
+
+  for (let i = 5; i < 88; i++) {
+    const row = raw[i];
+    if (!row) continue;
+    const gameNum = row[0];
+    if (gameNum == null || !String(gameNum).match(/^\d+(\.\d+)?$/)) continue;
+    const dateStr = serialToDate(row[1]);
+    if (!dateStr) continue;
+
+    const f1 = parseNum(row[5]);
+    const f2 = parseNum(row[7]);
+    const hasResult = f1 != null && f2 != null;
+
+    const predictions = {};
+    for (const p of players) {
+      predictions[p.name] = {
+        s1: parseNum(row[p.col]),
+        s2: parseNum(row[p.col + 2]),
+        pts: parseNum(row[p.col + 3]),
+      };
+    }
+
+    games.push({
+      num: Math.round(Number(gameNum)),
+      date: dateStr,
+      team1: row[2] ? String(row[2]).trim() : '?',
+      team2: row[4] ? String(row[4]).trim() : '?',
+      final1: hasResult ? f1 : null,
+      final2: hasResult ? f2 : null,
+      normal1: null, normal2: null,
+      hasResult,
+      isKnockout: false,
+      predictions,
+    });
+  }
+
+  // ── KNOCKOUT GAMES (rows 92–153, games 73–104) ────────────────────────
+  // Cols: 0=num,1=date,2=team1,4=team2
+  //       5=normalaeg1, 7=normalaeg2 (used for predictions)
+  //       8=lopptulemus1, 10=lopptulemus2 (informational)
+  // Players: col+1=score1, col+3=score2, col+4=pts  (note: different offset!)
+  for (let i = 92; i < 154; i++) {
+    const row = raw[i];
+    if (!row) continue;
+    const gameNum = row[0];
+    if (gameNum == null || !String(gameNum).match(/^\d+(\.\d+)?$/)) continue;
+    const dateStr = serialToDate(row[1]);
+    if (!dateStr) continue;
+
+    const n1 = parseNum(row[5]);
+    const n2 = parseNum(row[7]);
+    const l1 = parseNum(row[8]);
+    const l2 = parseNum(row[10]);
+    const hasResult = n1 != null && n2 != null;
+    const hasFinal = l1 != null && l2 != null;
+
+    const predictions = {};
+    for (const p of players) {
+      predictions[p.name] = {
+        s1: parseNum(row[p.col + 1]),
+        s2: parseNum(row[p.col + 3]),
+        pts: parseNum(row[p.col + 4]),
+      };
+    }
+
+    games.push({
+      num: Math.round(Number(gameNum)),
+      date: dateStr,
+      team1: row[2] ? String(row[2]).trim() : '?',
+      team2: row[4] ? String(row[4]).trim() : '?',
+      final1: hasResult ? n1 : null,
+      final2: hasResult ? n2 : null,
+      normal1: hasResult ? n1 : null,
+      normal2: hasResult ? n2 : null,
+      loppu1: hasFinal ? l1 : null,
+      loppu2: hasFinal ? l2 : null,
+      hasResult,
+      hasFinal,
+      isKnockout: true,
+      predictions,
+    });
+  }
+
+  // ── BONUS (rows 155,167,170) ──────────────────────────────────────────
+  // Row 155 = Maailmameister predictions, 156 = points
+  // Row 167 = Enim väravaid predictions, 168 = points
+  // Row 170 = Kuldne saabas predictions, 171 = points
+  const bonusCategories = [
+    { label: 'World Champion', predRow: 155, ptsRow: 156 },
+    { label: 'Most Goals (Country)', predRow: 167, ptsRow: 168 },
+    { label: 'Golden Boot', predRow: 170, ptsRow: 171 },
+  ];
+
+  const bonus = bonusCategories.map(cat => {
+    const predRow = raw[cat.predRow];
+    const ptsRow = raw[cat.ptsRow];
+    // Actual result: not stored in sheet yet — will show as TBD
+    const playerBets = {};
+    for (const p of players) {
+      const pred = predRow?.[p.col];
+      const pts = ptsRow?.[p.col];
+      playerBets[p.name] = {
+        pred: pred != null ? String(pred).trim() : null,
+        pts: pts != null ? Number(pts) : 0,
+      };
+    }
+    return { label: cat.label, playerBets };
+  });
+
+  // ── TOTALS: sum game points + bonus points ────────────────────────────
+  for (const p of players) {
+    let sum = 0;
+    for (const g of games) {
+      const pr = g.predictions[p.name];
+      if (pr && pr.pts != null) sum += pr.pts;
+    }
+    for (const cat of bonus) {
+      sum += cat.playerBets[p.name]?.pts || 0;
+    }
+    p.total = sum;
+  }
+
+  return { players, games, bonus };
+}
+
+
+// ── SCOREBOARD BUILD ───────────────────────────────────────────────────────
+function buildScoreboard() {
+  const sorted = [...allPlayers].sort((a, b) => b.total - a.total);
+  const maxPts = sorted[0]?.total || 0;
+  scoreboard = sorted.map((p, i) => ({
+    ...p,
+    rank: i + 1,
+    gap: p.total - maxPts,
+  }));
+}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────
+function renderDay() {
+  document.getElementById('dateLabel').innerHTML = formatDateLabel(currentDate);
+
+  const games = allGames.filter(g => g.date === currentDate);
+  const sbOpen = document.querySelector('.scoreboard')?.classList.contains('open');
+
+  let html = '';
+
+  // Day games
+  if (games.length === 0) {
+    html += `<div class="no-games">No games on this day.</div>`;
+  } else {
+    html += `<div class="day-label">${games.length} game${games.length !== 1 ? 's' : ''}</div>`;
+    for (const g of games) {
+      html += renderGameCard(g);
+    }
+  }
+
+  // Scoreboard toggle
+  html += `<button class="section-toggle${sbOpen ? ' open' : ''}" onclick="toggleScoreboard(this)" style="margin-top:16px;">
+    <span>🏆 Scoreboard</span>
+    <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+  </button>`;
+
+  html += `<div class="scoreboard${sbOpen ? ' open' : ''}" id="scoreboardEl">`;
+  for (const p of scoreboard) {
+    const isMe = p.name === selectedPerson;
+    const rankDisp = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : p.rank;
+    const rankClass = p.rank === 1 ? 'gold' : p.rank === 2 ? 'silver-r' : p.rank === 3 ? 'bronze' : '';
+    html += `<div class="sb-row${isMe ? ' me' : ''}">
+      <div class="sb-rank ${rankClass}">${rankDisp}</div>
+      <div class="sb-name">${p.name}${isMe ? ' ✦' : ''}</div>
+      <div class="sb-pts">${p.total}p</div>
+      ${p.gap < 0 ? `<div class="sb-gap">(${p.gap})</div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+
+  // Bonus panel
+  const bonusOpen = document.getElementById('bonusEl')?.classList.contains('open');
+  html += `<button class="section-toggle${bonusOpen ? ' open' : ''}" onclick="toggleBonus(this)" style="margin-top:8px;">
+    <span>⭐ Bonus Predictions</span>
+    <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+  </button>`;
+  html += `<div class="scoreboard${bonusOpen ? ' open' : ''}" id="bonusEl">`;
+  for (const cat of allBonus) {
+    html += `<div class="bonus-category">
+      <div class="bonus-cat-label">${cat.label}</div>`;
+    for (const p of allPlayers) {
+      const b = cat.playerBets[p.name];
+      if (!b) continue;
+      const isMe = p.name === selectedPerson;
+      const pts = b.pts || 0;
+      const ptsCls = pts === 0 ? '' : pts > 0 ? 'pts-5' : '';
+      html += `<div class="bonus-row${isMe ? ' me' : ''}">
+        <span class="bonus-name">${p.name}${isMe ? ' ✦' : ''}</span>
+        <span class="bonus-pred">${b.pred || '—'}</span>
+        ${pts > 0 ? `<span class="pts-badge ${ptsCls}" style="padding:2px 8px;font-size:11px;">${pts}p</span>` : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  }
+  html += '</div>';
+
+  html += `<button class="refresh-btn" onclick="init()">↻ Refresh data</button>`;
+  document.getElementById('content').innerHTML = html;
+}
+
+function renderGameCard(g) {
+  const pred = selectedPerson ? g.predictions[selectedPerson] : null;
+
+  // Score display: for knockout, normal time is the main score
+  let scoreHtml;
+  if (g.hasResult) {
+    scoreHtml = `<div class="score-box has-score">${g.final1}–${g.final2}</div>`;
+  } else {
+    scoreHtml = `<div class="score-box no-score">vs</div>`;
+  }
+
+  // For knockout: also show lopptulemus if available
+  let loppuHtml = '';
+  if (g.isKnockout && g.hasFinal) {
+    loppuHtml = `<div class="loppu-tag">Full time: ${g.loppu1}–${g.loppu2}</div>`;
+  } else if (g.isKnockout && g.hasResult) {
+    loppuHtml = `<div class="loppu-tag loppu-pending">Full time: pending</div>`;
+  }
+
+  // Prediction row (my bet)
+  let predHtml = '';
+  if (selectedPerson && pred) {
+    const hasPred = pred.s1 != null && pred.s2 != null;
+    if (g.hasResult) {
+      const ptsVal = pred.pts != null ? pred.pts : 0;
+      const ptsCls = ptsVal === 5 ? 'pts-5' : ptsVal === 3 ? 'pts-3' : 'pts-0';
+      const predStr = hasPred ? `${pred.s1}–${pred.s2}` : '—';
+      predHtml = `<div class="prediction-row">
+        <span class="pred-label">Your bet</span>
+        <span class="pred-score${hasPred ? '' : ' no-pred'}">${predStr}</span>
+        <span class="pts-badge ${ptsCls}">${ptsVal}p</span>
+      </div>`;
+    } else {
+      const predStr = hasPred ? `${pred.s1}–${pred.s2}` : '—';
+      predHtml = `<div class="prediction-row">
+        <span class="pred-label">Your bet</span>
+        <span class="pred-score${hasPred ? '' : ' no-pred'}">${predStr}</span>
+      </div>`;
+    }
+  }
+
+  // Others predictions list
+  const othersHtml = allPlayers.map(p => {
+    if (p.name === selectedPerson) return '';
+    const pr = g.predictions[p.name];
+    if (!pr || pr.s1 == null || pr.s2 == null) return `<div class="other-pred"><span class="other-name">${p.name}</span><span class="other-score no-pred">—</span></div>`;
+    const ptsVal = g.hasResult ? (pr.pts != null ? pr.pts : 0) : null;
+    const ptsCls = ptsVal === 5 ? 'pts-5' : ptsVal === 3 ? 'pts-3' : ptsVal === 0 ? 'pts-0' : '';
+    return `<div class="other-pred">
+      <span class="other-name">${p.name}</span>
+      <span class="other-score">${pr.s1}–${pr.s2}</span>
+      ${ptsVal !== null ? `<span class="pts-badge ${ptsCls}" style="padding:2px 7px;font-size:11px;">${ptsVal}p</span>` : ''}
+    </div>`;
+  }).join('');
+
+  const knockoutTag = g.isKnockout ? `<span class="ko-tag">Normal time</span>` : '';
+
+  return `<div class="game-card">
+    <div class="game-top" onclick="toggleGame(this)" style="cursor:pointer;">
+      <div class="game-num-row">
+        <span class="game-num">Game #${g.num}${g.isKnockout ? ' · Knockout' : ''}</span>
+        <svg class="game-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+      <div class="game-teams">
+        <span class="team-name">${g.team1}</span>
+        ${scoreHtml}
+        <span class="team-name right">${g.team2}</span>
+      </div>
+      ${loppuHtml}
+    </div>
+    ${predHtml}
+    <div class="others-panel">
+      <div class="others-inner">${othersHtml}</div>
+    </div>
+  </div>`;
+}
+
+
+function toggleBonus(btn) {
+  btn.classList.toggle('open');
+  document.getElementById('bonusEl').classList.toggle('open');
+}
+
+function toggleGame(gameTop) {
+  const card = gameTop.closest('.game-card');
+  card.classList.toggle('expanded');
+}
+
+function toggleScoreboard(btn) {
+  btn.classList.toggle('open');
+  document.getElementById('scoreboardEl').classList.toggle('open');
+}
+
+// ── LOAD DATA ──────────────────────────────────────────────────────────────
+async function loadData(url) {
+  const proxyUrl = url
+    .replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+    .replace('?dl=0', '')
+    .replace('?dl=1', '');
+
+  // Try direct fetch first (works if CORS allows), else try with dl param
+  const fetchUrl = proxyUrl.includes('dropboxusercontent.com')
+    ? proxyUrl
+    : url.replace('?dl=0', '?dl=1').replace(/([^?])$/, '$1');
+
+  const resp = await fetch(fetchUrl);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const buf = await resp.arrayBuffer();
+  const wb = XLSX.read(buf, { type: 'array' });
+  return parseWorkbook(wb);
+}
+
+function showUrlSetup() {
+  document.getElementById('content').innerHTML = `
+    <div class="url-setup">
+      <p>Paste your Dropbox share link for the Excel file. Make sure sharing is set to "Anyone with link".</p>
+      <input type="url" id="urlInput" placeholder="https://www.dropbox.com/scl/fi/…" value="${dropboxUrl}">
+      <button onclick="saveAndLoad()">Load data</button>
+    </div>
+    <p class="setup-hint">Tip: in Dropbox, right-click the file → Share → Copy link. The link usually ends in <code>?dl=0</code> — that's fine.</p>
+  `;
+}
+
+async function saveAndLoad() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) return;
+  localStorage.setItem('wc_dropbox_url', url);
+  dropboxUrl = url;
+  await init();
+}
+
+async function init() {
+  document.getElementById('content').innerHTML = `<div class="loading"><div class="spinner"></div><span>Fetching Excel…</span></div>`;
+
+  try {
+    const { players, games, bonus } = await loadData(dropboxUrl);
+    allBonus = bonus;
+    allPlayers = players;
+    allGames = games;
+    buildScoreboard();
+
+    // Find today or nearest game day
+    const gameDates = [...new Set(games.map(g => g.date))].sort();
+    if (!gameDates.includes(currentDate)) {
+      // Find closest date
+      const today = currentDate;
+      const future = gameDates.filter(d => d >= today);
+      const past = gameDates.filter(d => d < today);
+      currentDate = future[0] || past[past.length - 1] || today;
+    }
+
+    buildPersonDropdown();
+    if (selectedPerson) {
+      document.getElementById('personBtnLabel').textContent = selectedPerson;
+      updatePlayerStats();
+    }
+    renderDay();
+
+
+
+  } catch (err) {
+    document.getElementById('content').innerHTML = `
+      <div class="error-box">
+        <strong>Could not load the file.</strong>
+        ${err.message}<br><br>
+        Make sure the Dropbox link is correct and the file is shared publicly.
+      </div>
+    `;
+  }
+}
+
+// ── BOOT ───────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
